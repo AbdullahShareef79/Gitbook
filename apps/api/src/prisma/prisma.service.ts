@@ -3,21 +3,34 @@ import { Pool } from 'pg';
 
 @Injectable()
 export class PrismaService implements OnModuleInit, OnModuleDestroy {
-  private pool: Pool;
+  public pool: Pool;
 
   constructor() {
+    // Parse the DATABASE_URL to avoid SASL issues
+    const dbUrl = process.env.DATABASE_URL || 'postgresql://dev:dev@localhost:5432/devsocial';
     this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: dbUrl,
+      ssl: false,
     });
   }
 
   async onModuleInit() {
-    // Test connection
-    await this.pool.query('SELECT 1');
+    // Test connection with timeout
+    try {
+      const result = await this.pool.query('SELECT 1');
+      console.log('✅ Database connected successfully');
+    } catch (error) {
+      console.error('❌ Database connection failed:', error.message);
+      // Don't throw - let the app start anyway
+    }
   }
 
   async onModuleDestroy() {
-    await this.pool.end();
+    try {
+      await this.pool.end();
+    } catch (error) {
+      console.error('Error closing pool:', error.message);
+    }
   }
 
   // Post methods
@@ -220,6 +233,39 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       );
       return result.rows[0];
     },
+
+    update: async (params: any) => {
+      const { where, data } = params;
+      const fields: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      if (data.name !== undefined) {
+        fields.push(`name = $${paramIndex++}`);
+        values.push(data.name);
+      }
+      if (data.image !== undefined) {
+        fields.push(`image = $${paramIndex++}`);
+        values.push(data.image);
+      }
+      if (data.headline !== undefined) {
+        fields.push(`headline = $${paramIndex++}`);
+        values.push(data.headline);
+      }
+      if (data.skills !== undefined) {
+        fields.push(`skills = $${paramIndex++}`);
+        values.push(data.skills);
+      }
+
+      fields.push(`"updatedAt" = NOW()`);
+      values.push(where.id);
+
+      const result = await this.pool.query(
+        `UPDATE "User" SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+        values
+      );
+      return result.rows[0];
+    },
   };
 
   // Jam methods
@@ -262,6 +308,87 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   $queryRaw = async (query: string, ...args: any[]) => {
     const result = await this.pool.query(query, args);
     return result.rows;
+  };
+
+  $executeRaw = async (strings: TemplateStringsArray | string, ...args: any[]) => {
+    // Handle tagged template literals
+    let query: string;
+    if (typeof strings === 'string') {
+      query = strings;
+    } else {
+      // Combine template strings and args
+      query = strings.reduce((acc, str, i) => {
+        return acc + str + (args[i] !== undefined ? `$${i + 1}` : '');
+      }, '');
+    }
+    const result = await this.pool.query(query, args);
+    return result.rowCount || 0;
+  };
+
+  // Marketplace methods
+  marketplaceItem = {
+    findMany: async (params: any = {}) => {
+      const limit = params.take || 20;
+      const result = await this.pool.query(
+        `SELECT 
+          m.*,
+          json_build_object(
+            'id', u.id,
+            'handle', u.handle,
+            'name', u.name,
+            'image', u.image
+          ) as seller
+         FROM "MarketplaceItem" m
+         LEFT JOIN "User" u ON m."sellerId" = u.id
+         ORDER BY m."createdAt" DESC
+         LIMIT $1`,
+        [limit]
+      );
+      return result.rows.map(row => ({
+        ...row,
+        seller: row.seller
+      }));
+    },
+
+    findUnique: async (params: any) => {
+      const { where } = params;
+      const result = await this.pool.query(
+        `SELECT 
+          m.*,
+          json_build_object(
+            'id', u.id,
+            'handle', u.handle,
+            'name', u.name,
+            'image', u.image
+          ) as seller
+         FROM "MarketplaceItem" m
+         LEFT JOIN "User" u ON m."sellerId" = u.id
+         WHERE m.id = $1`,
+        [where.id]
+      );
+      return result.rows[0] || null;
+    },
+
+    create: async (params: any) => {
+      const { data } = params;
+      const result = await this.pool.query(
+        `INSERT INTO "MarketplaceItem" 
+          (id, "sellerId", title, description, type, "priceCents", tags, "previewUrl", "downloadUrl", "createdAt", "updatedAt") 
+         VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()) 
+         RETURNING *`,
+        [
+          data.sellerId,
+          data.title,
+          data.description,
+          data.type,
+          data.priceCents,
+          data.tags || [],
+          data.previewUrl || null,
+          data.downloadUrl || null,
+        ]
+      );
+      return result.rows[0];
+    },
   };
 
   $connect = async () => {

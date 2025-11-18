@@ -1,17 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { randomBytes } from 'crypto';
-import { Pool } from 'pg';
 
 @Injectable()
 export class JamsService {
-  private pool: Pool;
-  
-  constructor(private prisma: PrismaService) {
-    this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-    });
-  }
+  constructor(private prisma: PrismaService) {}
 
   async createJam(hostId: string) {
     const roomId = randomBytes(16).toString('hex');
@@ -42,14 +35,14 @@ export class JamsService {
     const id = randomBytes(16).toString('hex');
     const stateBuffer = Buffer.from(base64Update, 'base64');
     
-    await this.pool.query(
+    await this.prisma.pool.query(
       'INSERT INTO jam_snapshots (id, jam_id, state, created_at) VALUES ($1, $2, $3, NOW())',
       [id, jamId, stateBuffer]
     );
   }
 
   async latestSnapshot(jamId: string): Promise<string | null> {
-    const result = await this.pool.query(
+    const result = await this.prisma.pool.query(
       'SELECT state FROM jam_snapshots WHERE jam_id = $1 ORDER BY created_at DESC LIMIT 1',
       [jamId]
     );

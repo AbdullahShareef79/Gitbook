@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class MarketplaceService {
   private stripe: Stripe;
 
-  constructor(private config: ConfigService) {
+  constructor(
+    private config: ConfigService,
+    private prisma: PrismaService,
+  ) {
     const secretKey = config.get('STRIPE_SECRET_KEY');
     if (secretKey) {
       this.stripe = new Stripe(secretKey, { apiVersion: '2023-10-16' });
@@ -66,5 +70,17 @@ export class MarketplaceService {
     }
 
     return { received: true };
+  }
+
+  async getItems() {
+    return this.prisma.marketplaceItem.findMany({
+      take: 50,
+    });
+  }
+
+  async getItem(id: string) {
+    return this.prisma.marketplaceItem.findUnique({
+      where: { id },
+    });
   }
 }

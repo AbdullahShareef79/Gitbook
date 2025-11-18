@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request, Headers, RawBodyRequest, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards, Request, Headers, RawBodyRequest, Req } from '@nestjs/common';
 import { MarketplaceService } from './marketplace.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { IsString, IsNumber } from 'class-validator';
@@ -17,6 +17,16 @@ class CreateCheckoutDto {
 @Controller('marketplace')
 export class MarketplaceController {
   constructor(private marketplace: MarketplaceService) {}
+
+  @Get('items')
+  async listItems() {
+    return this.marketplace.getItems();
+  }
+
+  @Get('items/:id')
+  async getItem(@Param('id') id: string) {
+    return this.marketplace.getItem(id);
+  }
 
   @UseGuards(JwtAuthGuard)
   @Post('checkout')

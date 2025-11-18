@@ -28,6 +28,7 @@ model User {
   transactions  Transaction[] @relation("Buyer")
   sales         Transaction[] @relation("Seller")
   interactions  PostInteraction[]
+  marketplaceItems MarketplaceItem[] @relation("MarketplaceSeller")
 }
 
 model Project {
@@ -79,6 +80,29 @@ model Jam {
   endedAt   DateTime?
 }
 
+model MarketplaceItem {
+  id          String   @id @default(cuid())
+  sellerId    String
+  seller      User     @relation("MarketplaceSeller", fields: [sellerId], references: [id])
+  title       String
+  description String
+  type        ItemType
+  priceCents  Int
+  tags        String[]
+  previewUrl  String?
+  downloadUrl String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  transactions Transaction[]
+}
+
+enum ItemType {
+  TEMPLATE
+  SNIPPET
+  CONSULTING
+  COURSE
+}
+
 model Transaction {
   id        String   @id @default(cuid())
   buyerId   String
@@ -86,6 +110,7 @@ model Transaction {
   sellerId  String
   seller    User     @relation("Seller", fields: [sellerId], references: [id])
   itemId    String
+  item      MarketplaceItem @relation(fields: [itemId], references: [id])
   priceCents Int
   status     TxStatus @default(PENDING)
   createdAt  DateTime @default(now())
