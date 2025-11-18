@@ -1,0 +1,41 @@
+# fly.toml - API Server Configuration
+app = "devsocial-api"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "4000"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+    protocol = "http"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# Set secrets with:
+# fly secrets set DATABASE_URL="postgresql://..." 
+# fly secrets set JWT_SECRET="..."
+# fly secrets set OPENAI_API_KEY="..."
+# fly secrets set GITHUB_ID="..."
+# fly secrets set GITHUB_SECRET="..."
+# fly secrets set STRIPE_SECRET_KEY="..."
+# fly secrets set STRIPE_WEBHOOK_SECRET="..."
+# fly secrets set ALLOWED_ORIGINS="https://yourdomain.com,https://www.yourdomain.com"

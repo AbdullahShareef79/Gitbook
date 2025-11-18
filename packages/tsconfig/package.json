@@ -1,0 +1,6 @@
+{
+  "name": "@dev-social/tsconfig",
+  "version": "0.0.0",
+  "private": true,
+  "main": "index.js"
+}

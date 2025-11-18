@@ -1,0 +1,43 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: ankane/pgvector:pg16
+        ports: ['5432:5432']
+        env:
+          POSTGRES_USER: dev
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: devsocial
+        options: >-
+          --health-cmd="pg_isready -U dev"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma Client
+        run: pnpm --filter api prisma:generate
+        env:
+          DATABASE_URL: postgresql://dev:dev@localhost:5432/devsocial?schema=public
+      - name: Run Prisma Migrations
+        run: pnpm --filter api prisma:migrate
+        env:
+          DATABASE_URL: postgresql://dev:dev@localhost:5432/devsocial?schema=public
+      - name: Lint
+        run: pnpm lint || true
+      - name: Build
+        run: pnpm -r build

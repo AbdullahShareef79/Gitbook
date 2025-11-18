@@ -1,0 +1,126 @@
+generator client {
+  provider      = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  handle        String   @unique
+  email         String   @unique
+  name          String?
+  image         String?
+  githubId      String?  @unique
+  headline      String?
+  skills        String[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  posts         Post[]
+  projects      Project[]
+  jamsHosted    Jam[]    @relation("JamHost")
+  follows       Follow[] @relation("Follower")
+  followers     Follow[] @relation("Followee")
+  transactions  Transaction[] @relation("Buyer")
+  sales         Transaction[] @relation("Seller")
+  interactions  PostInteraction[]
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id])
+  title       String
+  githubUrl   String   @unique
+  tags        String[]
+  summary     String?
+  embedding   Embedding?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Post {
+  id          String   @id @default(cuid())
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  type        PostType
+  content     Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  interactions PostInteraction[]
+}
+
+enum PostType {
+  REPO_CARD
+  CLIP
+  NOTE
+}
+
+model Follow {
+  id         String @id @default(cuid())
+  followerId String
+  followeeId String
+  follower   User   @relation("Follower", fields: [followerId], references: [id])
+  followee   User   @relation("Followee", fields: [followeeId], references: [id])
+
+  @@unique([followerId, followeeId])
+}
+
+model Jam {
+  id        String   @id @default(cuid())
+  hostId    String
+  host      User     @relation("JamHost", fields: [hostId], references: [id])
+  roomId    String   @unique
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+}
+
+model Transaction {
+  id        String   @id @default(cuid())
+  buyerId   String
+  buyer     User     @relation("Buyer", fields: [buyerId], references: [id])
+  sellerId  String
+  seller    User     @relation("Seller", fields: [sellerId], references: [id])
+  itemId    String
+  priceCents Int
+  status     TxStatus @default(PENDING)
+  createdAt  DateTime @default(now())
+}
+
+enum TxStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+model Embedding {
+  projectId String  @id
+  project   Project @relation(fields: [projectId], references: [id])
+  vector    Unsupported("vector")
+}
+
+model PostInteraction {
+  id        String          @id @default(cuid())
+  postId    String
+  post      Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      InteractionKind
+  content   String?         // For COMMENT type
+  createdAt DateTime        @default(now())
+  
+  @@unique([postId, userId, kind])
+  @@index([postId])
+  @@index([userId])
+}
+
+enum InteractionKind {
+  LIKE
+  BOOKMARK
+  COMMENT
+}

@@ -1,0 +1,3 @@
+migration_lock_file_version = 1
+
+provider = "postgresql"
