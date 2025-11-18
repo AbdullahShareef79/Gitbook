@@ -32,6 +32,7 @@
     "prisma": "5.7.1",
     "reflect-metadata": "^0.1.14",
     "rxjs": "^7.8.1",
+    "sanitize-html": "^2.17.0",
     "stripe": "^14.10.0"
   },
   "devDependencies": {
@@ -43,12 +44,15 @@
     "@types/node": "^20.10.6",
     "@types/passport-jwt": "^4.0.0",
     "@types/pg": "^8.10.9",
+    "@types/sanitize-html": "^2.16.0",
+    "@types/supertest": "^6.0.3",
     "@typescript-eslint/eslint-plugin": "^6.16.0",
     "@typescript-eslint/parser": "^6.16.0",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.2",
     "prettier": "^3.1.1",
+    "supertest": "^7.1.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }

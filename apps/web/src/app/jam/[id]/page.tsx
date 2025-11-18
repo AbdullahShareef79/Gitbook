@@ -7,10 +7,22 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { useParams } from 'next/navigation';
 import AiToolbar from '@/components/AiToolbar';
-import { Save } from 'lucide-react';
+import { Save, Users } from 'lucide-react';
 
 const WS_URL = process.env.NEXT_PUBLIC_COLLAB_WS_URL || 'ws://localhost:1234';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+interface AwarenessUser {
+  handle: string;
+  name: string;
+  color: string;
+  cursor?: { line: number; column: number };
+}
+
+const COLORS = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
+  '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52C7B8'
+];
 
 export default function JamPage() {
   const params = useParams();
@@ -22,27 +34,60 @@ export default function JamPage() {
   const [language, setLanguage] = useState('typescript');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
+  const [connectedUsers, setConnectedUsers] = useState<Map<number, AwarenessUser>>(new Map());
   const editorRef = useRef<any>(null);
+  const decorationsRef = useRef<string[]>([]);
 
   useEffect(() => {
     const doc = new Y.Doc();
-    const wsProvider = new WebsocketProvider(WS_URL, params.id as string, doc);
+    
+    // Load snapshot BEFORE connecting provider
+    loadSnapshot(doc).then(() => {
+      // Now connect to WebSocket
+      const wsProvider = new WebsocketProvider(WS_URL, params.id as string, doc);
 
-    wsProvider.on('status', (event: any) => {
-      setConnected(event.status === 'connected');
+      wsProvider.on('status', (event: any) => {
+        setConnected(event.status === 'connected');
+      });
+
+      // Set up awareness for presence
+      if (session?.user) {
+        const user = session.user as any;
+        const userColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+        
+        wsProvider.awareness.setLocalStateField('user', {
+          handle: user.handle || user.email?.split('@')[0] || 'Anonymous',
+          name: user.name || 'Anonymous User',
+          color: userColor,
+        });
+      }
+
+      // Listen to awareness changes
+      wsProvider.awareness.on('change', () => {
+        const states = wsProvider.awareness.getStates();
+        const users = new Map<number, AwarenessUser>();
+        
+        states.forEach((state: any, clientId: number) => {
+          if (state.user && clientId !== wsProvider.awareness.clientID) {
+            users.set(clientId, state.user);
+          }
+        });
+        
+        setConnectedUsers(users);
+        updateCursorDecorations(users);
+      });
+
+      setYdoc(doc);
+      setProvider(wsProvider);
     });
 
-    setYdoc(doc);
-    setProvider(wsProvider);
-
-    // Load latest snapshot
-    loadSnapshot(doc);
-
     return () => {
-      wsProvider.destroy();
+      if (provider) {
+        provider.destroy();
+      }
       doc.destroy();
     };
-  }, [params.id]);
+  }, [params.id, session]);
 
   // Auto-save every 30 seconds
   useEffect(() => {
@@ -82,6 +127,34 @@ export default function JamPage() {
     }
   };
 
+  const updateCursorDecorations = (users: Map<number, AwarenessUser>) => {
+    if (!editorRef.current) return;
+
+    const editor = editorRef.current;
+    const decorations: any[] = [];
+
+    users.forEach((user) => {
+      if (user.cursor) {
+        decorations.push({
+          range: {
+            startLineNumber: user.cursor.line,
+            startColumn: user.cursor.column,
+            endLineNumber: user.cursor.line,
+            endColumn: user.cursor.column + 1,
+          },
+          options: {
+            className: 'remote-cursor',
+            beforeContentClassName: 'remote-cursor-label',
+            beforeContentStyle: `background-color: ${user.color}; content: "${user.handle}"`,
+            stickiness: 1,
+          },
+        });
+      }
+    });
+
+    decorationsRef.current = editor.deltaDecorations(decorationsRef.current, decorations);
+  };
+
   const saveSnapshot = async () => {
     if (!ydoc || !session || saving) return;
 
@@ -115,6 +188,19 @@ export default function JamPage() {
       const selection = editor.getModel()?.getValueInRange(e.selection);
       if (selection) {
         setSelectedCode(selection);
+      }
+    });
+
+    // Update awareness with cursor position
+    editor.onDidChangeCursorPosition((e: any) => {
+      if (provider?.awareness) {
+        provider.awareness.setLocalStateField('user', {
+          ...provider.awareness.getLocalState()?.user,
+          cursor: {
+            line: e.position.lineNumber,
+            column: e.position.column,
+          },
+        });
       }
     });
   };
@@ -160,6 +246,26 @@ export default function JamPage() {
           >
             {connected ? 'Connected' : 'Connecting...'}
           </span>
+          {connectedUsers.size > 0 && (
+            <div className="flex items-center gap-2 ml-4">
+              <Users className="w-4 h-4 text-muted-foreground" />
+              <div className="flex -space-x-2">
+                {Array.from(connectedUsers.values()).map((user, idx) => (
+                  <div
+                    key={idx}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white border-2 border-background"
+                    style={{ backgroundColor: user.color }}
+                    title={user.name}
+                  >
+                    {user.handle.charAt(0).toUpperCase()}
+                  </div>
+                ))}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {connectedUsers.size} {connectedUsers.size === 1 ? 'user' : 'users'} online
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <button

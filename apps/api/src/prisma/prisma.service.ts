@@ -391,6 +391,83 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     },
   };
 
+  // Follow methods
+  follow = {
+    create: async (params: any) => {
+      const { data } = params;
+      const result = await this.pool.query(
+        `INSERT INTO "Follow" (id, "followerId", "followeeId", "createdAt")
+         VALUES (gen_random_uuid()::text, $1, $2, NOW())
+         ON CONFLICT ("followerId", "followeeId") DO NOTHING
+         RETURNING *`,
+        [data.followerId, data.followeeId]
+      );
+      return result.rows[0];
+    },
+
+    delete: async (params: any) => {
+      const { where } = params;
+      const result = await this.pool.query(
+        `DELETE FROM "Follow"
+         WHERE "followerId" = $1 AND "followeeId" = $2
+         RETURNING *`,
+        [where.followerId_followeeId.followerId, where.followerId_followeeId.followeeId]
+      );
+      return result.rows[0];
+    },
+
+    findMany: async (params: any = {}) => {
+      const { where, orderBy, take = 20 } = params;
+      let query = `SELECT f.*, 
+                          json_build_object(
+                            'id', u.id,
+                            'handle', u.handle,
+                            'name', u.name,
+                            'image', u.image
+                          ) as user
+                   FROM "Follow" f
+                   LEFT JOIN "User" u ON `;
+      
+      let values: any[] = [];
+      let whereClause = '';
+      
+      if (where?.followerId) {
+        query += `f."followeeId" = u.id WHERE f."followerId" = $1`;
+        values.push(where.followerId);
+        whereClause = 'followerId';
+      } else if (where?.followeeId) {
+        query += `f."followerId" = u.id WHERE f."followeeId" = $1`;
+        values.push(where.followeeId);
+        whereClause = 'followeeId';
+      }
+
+      query += ` ORDER BY f."createdAt" DESC LIMIT $${values.length + 1}`;
+      values.push(take);
+
+      const result = await this.pool.query(query, values);
+      return result.rows;
+    },
+
+    count: async (params: any = {}) => {
+      const { where } = params;
+      let query = `SELECT COUNT(*) as count FROM "Follow" WHERE `;
+      let values: any[] = [];
+
+      if (where?.followerId) {
+        query += `"followerId" = $1`;
+        values.push(where.followerId);
+      } else if (where?.followeeId) {
+        query += `"followeeId" = $1`;
+        values.push(where.followeeId);
+      } else {
+        query += `TRUE`;
+      }
+
+      const result = await this.pool.query(query, values);
+      return parseInt(result.rows[0].count, 10);
+    },
+  };
+
   $connect = async () => {
     await this.pool.query('SELECT 1');
   };

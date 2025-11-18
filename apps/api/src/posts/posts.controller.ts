@@ -24,8 +24,12 @@ export class PostsController {
   }
 
   @Get('feed')
-  async getFeed(@Query('limit') limit?: string) {
-    return this.posts.getFeed(undefined, limit ? parseInt(limit) : 20);
+  async getFeed(
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const limitNum = limit ? Math.min(parseInt(limit), 50) : 20;
+    return this.posts.getFeed(cursor, limitNum);
   }
 
   @Get(':id')

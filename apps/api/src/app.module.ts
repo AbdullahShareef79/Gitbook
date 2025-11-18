@@ -11,6 +11,7 @@ import { AiModule } from './ai/ai.module';
 import { MarketplaceModule } from './marketplace/marketplace.module';
 import { GdprModule } from './gdpr/gdpr.module';
 import { HealthModule } from './health/health.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { HealthModule } from './health/health.module';
     MarketplaceModule,
     GdprModule,
     HealthModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

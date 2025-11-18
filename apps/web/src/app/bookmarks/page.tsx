@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { RepoCard } from '@/components/RepoCard';
 import { useInfiniteFeed } from '@/hooks/useInfiniteFeed';
 
@@ -15,17 +16,24 @@ interface Post {
   createdAt: string;
 }
 
-export default function Home() {
-  const { data: session } = useSession();
+export default function BookmarksPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const token = session?.user ? (session as any).accessToken : null;
-  
+
   const { items: posts, isLoadingInitial, isLoadingMore, hasMore, loadMore } = useInfiniteFeed<Post>(
-    `${API_URL}/posts/feed`,
+    `${API_URL}/users/me/bookmarks`,
     { limit: 10, token }
   );
 
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/');
+    }
+  }, [status, router]);
 
   useEffect(() => {
     if (!loadMoreRef.current) return;
@@ -48,28 +56,32 @@ export default function Home() {
     };
   }, [hasMore, isLoadingMore, loadMore]);
 
+  if (status === 'loading' || isLoadingInitial) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="text-center py-12">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Feed</h1>
+        <h1 className="text-3xl font-bold mb-2">Bookmarks</h1>
         <p className="text-muted-foreground">
-          Discover projects and connect with developers
+          Posts you've saved for later
         </p>
       </div>
 
-      {isLoadingInitial ? (
-        <div className="text-center py-12">Loading...</div>
-      ) : posts.length === 0 ? (
+      {posts.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">No posts yet</p>
-          {session && (
-            <a
-              href="/project/new"
-              className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
-            >
-              Create your first repo card
-            </a>
-          )}
+          <p className="text-muted-foreground mb-4">No bookmarks yet</p>
+          <a
+            href="/"
+            className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
+          >
+            Explore the feed
+          </a>
         </div>
       ) : (
         <>
@@ -83,7 +95,7 @@ export default function Home() {
           <div ref={loadMoreRef} className="py-8 text-center">
             {isLoadingMore && <div className="text-muted-foreground">Loading more...</div>}
             {!hasMore && posts.length > 0 && (
-              <div className="text-muted-foreground">End of feed</div>
+              <div className="text-muted-foreground">No more bookmarks</div>
             )}
           </div>
         </>
@@ -91,4 +103,3 @@ export default function Home() {
     </div>
   );
 }
-
