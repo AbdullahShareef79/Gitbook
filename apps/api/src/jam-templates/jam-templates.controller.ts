@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { JamTemplatesService } from './jam-templates.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
+import { AdminGuard } from '../common/guards/admin.guard';
 import { IsString } from 'class-validator';
 
 class CreateTemplateDto {
@@ -27,11 +28,10 @@ export class JamTemplatesController {
     return { templates };
   }
 
-  // Admin-only stub: create template
+  // Admin-only: create template
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async createTemplate(@Body() dto: CreateTemplateDto) {
-    // TODO: Add admin check here
     const template = await this.jamTemplatesService.createTemplate(
       dto.title,
       dto.description,

@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Delete, Param, UseGuards, Request, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
+import { RateLimitGuard } from '../common/guards/rate-limit.guard';
 
 @Controller('users')
 export class UsersController {
@@ -47,13 +48,13 @@ export class UsersController {
     return this.users.findById(req.user.userId);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RateLimitGuard)
   @Post(':id/follow')
   async follow(@Param('id') targetUserId: string, @Request() req) {
     return this.users.follow(req.user.userId, targetUserId);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RateLimitGuard)
   @Delete(':id/follow')
   async unfollow(@Param('id') targetUserId: string, @Request() req) {
     return this.users.unfollow(req.user.userId, targetUserId);

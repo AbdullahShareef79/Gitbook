@@ -2,8 +2,7 @@ import { Controller, Get, Post, Body, Query, UseGuards, Request, Sse, MessageEve
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { IsArray, IsBoolean, IsOptional, IsString } from 'class-validator';
-import { Observable, interval } from 'rxjs';
-import { map, switchMap } from 'rxjs/operators';
+import { Observable } from 'rxjs';
 
 class MarkAsReadDto {
   @IsOptional()
@@ -55,14 +54,38 @@ export class NotificationsController {
   streamNotifications(@Request() req): Observable<MessageEvent> {
     const userId = req.user.userId;
 
-    return interval(15000).pipe(
-      switchMap(async () => {
-        // Send heartbeat every 15 seconds
-        const unreadCount = await this.notifications.getUnreadCount(userId);
-        return { data: { type: 'heartbeat', unreadCount } };
-      }),
-      map((event) => event)
-    );
+    // Register connection for push notifications
+    const sendEvent = (notification: any) => {
+      // This will be called when new notifications are created
+    };
+    sseConnections.set(userId, sendEvent);
+
+    return new Observable((subscriber) => {
+      // Send initial heartbeat
+      this.notifications.getUnreadCount(userId).then(count => {
+        subscriber.next({
+          data: { type: 'heartbeat', unreadCount: count }
+        } as any);
+      });
+
+      // Send heartbeat every 30 seconds
+      const heartbeatInterval = setInterval(async () => {
+        try {
+          const unreadCount = await this.notifications.getUnreadCount(userId);
+          subscriber.next({
+            data: { type: 'heartbeat', unreadCount }
+          } as any);
+        } catch (error) {
+          console.error('Heartbeat error:', error);
+        }
+      }, 30000);
+
+      // Cleanup on disconnect
+      return () => {
+        clearInterval(heartbeatInterval);
+        sseConnections.delete(userId);
+      };
+    });
   }
 }
 

@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
 import { ModerationService } from './moderation.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
+import { AdminGuard } from '../common/guards/admin.guard';
 import { IsString, IsEnum, MaxLength } from 'class-validator';
 
 class CreateFlagDto {
@@ -41,13 +42,12 @@ export class FlagsController {
 
   // Admin-only: get all flags
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async getFlags(
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
     @Query('status') status?: string
   ) {
-    // TODO: Add admin check here
     const result = await this.moderationService.getFlags(
       cursor,
       limit ? parseInt(limit) : 20,
@@ -59,17 +59,32 @@ export class FlagsController {
 
   // Admin-only: resolve flag
   @Post(':id/resolve')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async resolveFlag(
     @Param('id') id: string,
     @Body() dto: ResolveFlagDto,
     @Request() req
   ) {
-    // TODO: Add admin check here
     const resolved = await this.moderationService.resolveFlag(
       id,
       req.user.userId,
       dto.status
+    );
+
+    return { success: resolved };
+  }
+
+  // Admin-only: dismiss flag (alias for resolve with DISMISSED status)
+  @Post(':id/dismiss')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async dismissFlag(
+    @Param('id') id: string,
+    @Request() req
+  ) {
+    const resolved = await this.moderationService.resolveFlag(
+      id,
+      req.user.userId,
+      'DISMISSED'
     );
 
     return { success: resolved };

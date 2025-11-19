@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Body, UseGuards, Request } from '@nestjs/common';
 import { InviteService } from './invite.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
+import { AdminGuard } from '../common/guards/admin.guard';
 import { IsString, IsNumber, IsOptional, Min, Max } from 'class-validator';
 
 class CreateInvitesDto {
@@ -24,11 +25,10 @@ class ClaimInviteDto {
 export class InviteController {
   constructor(private inviteService: InviteService) {}
 
-  // Admin-only stub: create invite codes
+  // Admin-only: create invite codes
   @Post('create')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async createInvites(@Body() dto: CreateInvitesDto, @Request() req) {
-    // TODO: Add admin check here
     const expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : undefined;
     const codes = await this.inviteService.createInvites(
       dto.count || 1,
