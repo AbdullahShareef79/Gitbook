@@ -9,6 +9,7 @@ A modern, full-stack MVP for an AI-powered developer social network with feed, A
 - **Web** (`apps/web`): Next.js 14 + React + NextAuth (GitHub OAuth) + Tailwind + Monaco
 - **API** (`apps/api`): NestJS (REST) + Prisma ORM + PostgreSQL + **pgvector**
 - **Collab** (`apps/collab`): Yjs + y-websocket (real-time collaboration)
+- **Worker** (`apps/worker`): Background service for rank score calculations
 
 ### Tech Stack
 
@@ -94,12 +95,22 @@ pnpm dev
 # Terminal 3: Collab server (ws://localhost:1234)
 cd apps/collab
 pnpm dev
+
+# Terminal 4 (Optional): Worker service for rank updates
+cd apps/worker
+pnpm dev
 ```
 
 Or run all at once (note: output will be mixed):
 
 ```bash
 pnpm dev
+```
+
+**Note**: The worker service is optional for local development. It runs hourly rank score updates in the background. You can also manually update ranks:
+
+```bash
+pnpm worker:update-ranks
 ```
 
 ### 6. Access the Application
@@ -162,12 +173,24 @@ gitbook/
 
 - ✅ **GitHub OAuth Authentication**: Sign in with GitHub via NextAuth
 - ✅ **AI Repo Cards**: Paste a GitHub URL → AI generates a summary card
-- ✅ **Feed**: Personalized feed with repo cards and posts
+- ✅ **Feed**: Personalized feed with repo cards and posts (ranked by recency + engagement)
 - ✅ **Live Code Jams**: Real-time collaborative coding with Yjs + Monaco
 - ✅ **Vector Search**: pgvector-powered semantic project search
-- ✅ **User Profiles**: View profiles with projects and skills
+- ✅ **User Profiles**: View profiles with projects, followers, following
+- ✅ **Notifications**: Real-time SSE-based notification system
+- ✅ **Moderation**: Admin dashboard for content flags
 - ✅ **GDPR Compliance**: Data export and erasure endpoints
 - 🚧 **Marketplace**: Stripe checkout skeleton (ready to extend)
+
+### Production Features (v1.0)
+
+- ✅ **Admin Role System**: Role-based access control (USER/ADMIN)
+- ✅ **Profile Tabs**: Followers/Following lists with infinite scroll
+- ✅ **Jam Templates**: Browse and start jams with code templates
+- ✅ **SSE Notifications**: EventSource with auto-reconnect
+- ✅ **Worker Service**: Background rank score calculations
+- ✅ **Security Hardening**: CORS, rate limiting, secure cookies
+- ✅ **E2E Tests**: Comprehensive test coverage
 
 ### AI Features
 
@@ -194,6 +217,10 @@ pnpm db:down          # Stop and remove PostgreSQL container
 pnpm prisma:generate  # Generate Prisma client
 pnpm prisma:migrate   # Run database migrations
 pnpm seed             # Seed database with demo data
+
+pnpm worker:dev       # Start worker in dev mode (auto-reload)
+pnpm worker:start     # Start worker in production mode
+pnpm worker:update-ranks  # Manually run rank update
 ```
 
 ### Database Management
@@ -295,21 +322,35 @@ docker build -t devsocial-collab .
 
 - **Web**: Vercel, Netlify, or Cloudflare Pages
 - **API**: Railway, Render, or Fly.io
+- **Worker**: Railway, Render, or Fly.io (separate service)
 - **Database**: Supabase (PostgreSQL + pgvector), Railway, or Neon
 - **Collab**: Railway, Render, or any Node.js host with WebSocket support
 
 ### Environment Variables for Production
 
-Ensure all services have access to:
-
+**API:**
 - `DATABASE_URL`: PostgreSQL connection string with pgvector
-- `NEXTAUTH_SECRET`: Production secret
 - `JWT_SECRET`: Production secret
+- `WEB_ORIGIN`: Your web app URL (e.g., `https://yourapp.com`)
+- `ALLOWED_ORIGINS`: Comma-separated list of allowed origins
+- `NODE_ENV`: Set to `production`
 - `GITHUB_ID` and `GITHUB_SECRET`: OAuth credentials
 - `OPENAI_API_KEY`: AI features
-- `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`: Payments
+- `STRIPE_SECRET_KEY`: Payments
+
+**Worker:**
+- `DATABASE_URL`: Same PostgreSQL connection
+- `RANK_UPDATE_INTERVAL_MS`: Update interval in ms (default: 3600000 = 1 hour)
+- `NODE_ENV`: Set to `production`
+
+**Web:**
+- `NEXTAUTH_SECRET`: Production secret
+- `NEXTAUTH_URL`: Your web app URL
 - `NEXT_PUBLIC_API_URL`: API base URL (e.g., `https://api.yourapp.com`)
 - `NEXT_PUBLIC_COLLAB_WS_URL`: WebSocket URL (e.g., `wss://collab.yourapp.com`)
+- `GITHUB_ID` and `GITHUB_SECRET`: OAuth credentials
+
+For detailed deployment instructions, see **RELEASE_NOTES.md**.
 
 ## 🤝 Contributing
 

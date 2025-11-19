@@ -1,0 +1,11 @@
+# Railway deployment configuration for worker
+# This file is used by Railway to deploy the worker service
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/worker/Dockerfile"
+
+[deploy]
+startCommand = "node dist/index.js"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

@@ -353,7 +353,10 @@ pnpm test
 ✅ **SQL Injection:** Parameterized queries only
 ✅ **Character Limits:** 10k max on content
 ✅ **No External Services:** All in-house, no SaaS
-✅ **CORS:** Properly configured
+✅ **CORS:** Narrowed to WEB_ORIGIN in production
+✅ **Secure Cookies:** httpOnly, secure, sameSite in prod
+✅ **Admin Access Control:** Role-based guards
+✅ **Error Sanitization:** No stack traces in production
 
 ---
 
@@ -366,45 +369,164 @@ pnpm test
 ✅ **Sanitization on Write:** Not on every read
 ✅ **SWR Caching:** Reduces API calls
 ✅ **Efficient SQL:** Ranking computed in database
+✅ **Background Worker:** Hourly rank updates offloaded
+✅ **SSE Heartbeats:** Minimal bandwidth overhead
 
 ---
 
-## 📝 Next Steps (Optional Enhancements)
+## � Production Features (v1.0)
 
-These are NOT required but would be nice additions:
+### Profile Followers/Following Tabs ✅
+- [x] Tab-based interface on profile pages
+- [x] Infinite scroll for follower/following lists
+- [x] Follow/unfollow buttons with optimistic updates
+- [x] Real-time count display
+- [x] Cursor-based pagination
 
-1. **FollowButton Component**
-   - Reusable across the app
-   - Optimistic UI updates
-   - Loading states
+**Files:**
+- `apps/web/src/components/FollowList.tsx`
+- `apps/web/src/app/profile/[handle]/page.tsx`
 
-2. **Profile Page Tabs**
-   - Followers/Following lists
-   - Bookmarks tab
-   - Posts tab
+### Jam Template Selector Modal ✅
+- [x] Browse templates by language
+- [x] Preview template code
+- [x] Start jam from scratch or with template
+- [x] Language filter
+- [x] Integration with POST /jams endpoint
 
-3. **Analytics Dashboard**
-   - Query Event table
-   - Show metrics charts
-   - Admin-only access
+**Files:**
+- `apps/web/src/components/JamTemplateSelector.tsx`
 
-4. **Jam Cursor Styling**
-   - CSS for remote cursors
-   - Colored selections
-   - Hover tooltips
+### Moderation Admin Dashboard ✅
+- [x] Admin-only access with lock screen
+- [x] View flagged content (paginated)
+- [x] Filter by status (OPEN, RESOLVED, DISMISSED)
+- [x] Resolve/dismiss actions
+- [x] Display reporter and post info
+
+**Files:**
+- `apps/web/src/app/admin/moderation/page.tsx`
+- `apps/api/src/common/guards/admin.guard.ts`
+
+### Real-Time Notifications (SSE) ✅
+- [x] EventSource-based streaming
+- [x] Exponential backoff reconnection
+- [x] Live unread count updates
+- [x] Heartbeat every 30 seconds
+- [x] Automatic cleanup
+
+**Files:**
+- `apps/web/src/hooks/useNotificationSSE.ts`
+- `apps/api/src/notifications/notifications.controller.ts`
+
+### Admin Role System ✅
+- [x] UserRole enum (USER, ADMIN)
+- [x] Database migration for role column
+- [x] AdminGuard for protected routes
+- [x] Backfill script for admin users
+
+**Files:**
+- `apps/api/src/common/guards/admin.guard.ts`
+- `apps/api/prisma/migrations/20251119144103_add_user_role/`
+- `scripts/backfill-admin.sql`
+
+### Worker Service for Rank Updates ✅
+- [x] Node.js background worker
+- [x] Hourly rank score calculation
+- [x] SQL-based ranking formula
+- [x] Dockerfile for deployment
+- [x] Fly.io and Railway configs
+
+**Files:**
+- `apps/worker/src/index.ts`
+- `apps/worker/src/update-ranks.ts`
+- `apps/worker/Dockerfile`
+- `apps/worker/fly.toml`
+
+### Security Hardening ✅
+- [x] CORS narrowed to WEB_ORIGIN
+- [x] Secure cookies in production
+- [x] Rate limiting on write operations
+- [x] Global exception filter
+- [x] Structured error responses
+
+**Files:**
+- `apps/api/src/main.ts`
+- `apps/api/src/common/filters/global-exception.filter.ts`
+- `apps/api/src/common/guards/rate-limit.guard.ts`
+
+### E2E Test Coverage ✅
+- [x] SSE connection tests
+- [x] Moderation workflow tests
+- [x] Follower pagination tests
+- [x] Template start-jam tests
+- [x] Rate limiting verification
+
+**Files:**
+- `apps/api/test/production-features.e2e-spec.ts`
+
+---
+
+## 📝 Production Deployment
+
+### Services to Deploy
+1. **API** - NestJS backend (Port 4000)
+2. **Web** - Next.js frontend (Port 3000)
+3. **Collab** - WebSocket server (Port 4001)
+4. **Worker** - Background job runner (No exposed port)
+
+### Environment Variables
+
+#### API
+```env
+DATABASE_URL=postgresql://...
+JWT_SECRET=...
+WEB_ORIGIN=https://your-domain.com
+NODE_ENV=production
+```
+
+#### Worker
+```env
+DATABASE_URL=postgresql://...
+RANK_UPDATE_INTERVAL_MS=3600000
+NODE_ENV=production
+```
+
+#### Web
+```env
+NEXT_PUBLIC_API_URL=https://api.your-domain.com
+NEXTAUTH_URL=https://your-domain.com
+NEXTAUTH_SECRET=...
+```
+
+### Run Worker
+```bash
+# Development
+pnpm worker:dev
+
+# Production
+pnpm worker:start
+
+# Manual rank update
+pnpm worker:update-ranks
+```
 
 ---
 
 ## 🎯 Conclusion
 
-All 9 features are **production-ready** with:
+All **9 original features** plus **7 production enhancements** are **complete and production-ready** with:
 - ✅ Full backend implementation
 - ✅ Database migrations applied
-- ✅ Frontend UI components
-- ✅ Infinite scroll patterns
-- ✅ Real-time features (notifications polling, jam presence)
-- ✅ Security measures
-- ✅ Test coverage
+- ✅ Frontend UI components with infinite scroll
+- ✅ Real-time features (SSE, jam collaboration)
+- ✅ Admin dashboard and role-based access
+- ✅ Background worker service
+- ✅ Security hardening (CORS, rate limiting, secure cookies)
+- ✅ Comprehensive E2E test coverage
 - ✅ Performance optimizations
+- ✅ Production deployment configs
 
 **No external SaaS services used** - everything is self-hosted as requested!
+
+See **RELEASE_NOTES.md** for deployment instructions and configuration details.

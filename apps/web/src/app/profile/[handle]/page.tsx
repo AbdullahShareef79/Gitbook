@@ -3,16 +3,22 @@
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import FollowList from '@/components/FollowList';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+type TabType = 'projects' | 'followers' | 'following';
 
 export default function ProfilePage() {
   const params = useParams();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('projects');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProfile();
+    fetchCurrentUser();
   }, [params.handle]);
 
   const fetchProfile = async () => {
@@ -23,6 +29,20 @@ export default function ProfilePage() {
       console.error('Failed to fetch profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCurrentUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const response = await axios.get(`${API_URL}/users/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setCurrentUserId(response.data.id);
+      }
+    } catch (error) {
+      console.error('Failed to fetch current user:', error);
     }
   };
 
@@ -37,6 +57,12 @@ export default function ProfilePage() {
       </div>
     );
   }
+
+  const tabs: { key: TabType; label: string; count?: number }[] = [
+    { key: 'projects', label: 'Projects', count: profile.projects?.length },
+    { key: 'followers', label: 'Followers', count: profile._count?.followers },
+    { key: 'following', label: 'Following', count: profile._count?.follows },
+  ];
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -71,33 +97,76 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Projects</h2>
-        {profile.projects && profile.projects.length > 0 ? (
-          <div className="grid gap-4">
-            {profile.projects.map((project: any) => (
-              <div key={project.id} className="border rounded-lg p-4">
-                <h3 className="font-semibold">{project.title}</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {project.summary}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {project.tags.map((tag: string) => (
-                    <span
-                      key={tag}
-                      className="px-2 py-1 bg-muted text-xs rounded"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-muted-foreground">No projects yet</p>
-        )}
+      {/* Tabs */}
+      <div className="border-b mb-6">
+        <div className="flex gap-6">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`pb-3 px-1 font-medium transition-colors relative ${
+                activeTab === tab.key
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {tab.label}
+              {tab.count !== undefined && (
+                <span className="ml-2 text-sm">({tab.count})</span>
+              )}
+              {activeTab === tab.key && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Tab Content */}
+      {activeTab === 'projects' && (
+        <div>
+          {profile.projects && profile.projects.length > 0 ? (
+            <div className="grid gap-4">
+              {profile.projects.map((project: any) => (
+                <div key={project.id} className="border rounded-lg p-4">
+                  <h3 className="font-semibold">{project.title}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {project.summary}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {project.tags.map((tag: string) => (
+                      <span
+                        key={tag}
+                        className="px-2 py-1 bg-muted text-xs rounded"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">No projects yet</p>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'followers' && (
+        <FollowList 
+          handle={params.handle as string} 
+          type="followers" 
+          currentUserId={currentUserId || undefined}
+        />
+      )}
+
+      {activeTab === 'following' && (
+        <FollowList 
+          handle={params.handle as string} 
+          type="following" 
+          currentUserId={currentUserId || undefined}
+        />
+      )}
     </div>
   );
 }
