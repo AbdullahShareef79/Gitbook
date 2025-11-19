@@ -11,6 +11,36 @@ export class UsersController {
     return this.users.getProfile(handle);
   }
 
+  // New: Get followers by handle
+  @Get('profile/:handle/followers')
+  async getFollowersByHandle(
+    @Param('handle') handle: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string
+  ) {
+    const user = await this.users.getProfile(handle);
+    if (!user) {
+      return { items: [], nextCursor: null };
+    }
+    const parsedLimit = Math.min(parseInt(limit || '20', 10), 50);
+    return this.users.getFollowers(user.id, cursor, parsedLimit);
+  }
+
+  // New: Get following by handle
+  @Get('profile/:handle/following')
+  async getFollowingByHandle(
+    @Param('handle') handle: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string
+  ) {
+    const user = await this.users.getProfile(handle);
+    if (!user) {
+      return { items: [], nextCursor: null };
+    }
+    const parsedLimit = Math.min(parseInt(limit || '20', 10), 50);
+    return this.users.getFollowing(user.id, cursor, parsedLimit);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async getMe(@Request() req) {

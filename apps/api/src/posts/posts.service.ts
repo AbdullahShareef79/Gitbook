@@ -74,11 +74,11 @@ export class PostsService {
     const params: any[] = [];
     
     if (decodedCursor) {
-      query += ` WHERE (p."createdAt", p.id) < ($1::timestamptz, $2)`;
-      params.push(decodedCursor.createdAt, decodedCursor.id);
+      query += ` WHERE (p.rank_score, p.id) < ($1::float, $2)`;
+      params.push(decodedCursor.rank_score, decodedCursor.id);
     }
 
-    query += ` ORDER BY p."createdAt" DESC, p.id DESC LIMIT $${params.length + 1}`;
+    query += ` ORDER BY p.rank_score DESC, p.id DESC LIMIT $${params.length + 1}`;
     params.push(limit + 1); // Fetch one extra to determine if there's a next page
 
     const result = await this.prisma.pool.query(query, params);
@@ -96,6 +96,7 @@ export class PostsService {
       nextCursor = encodeCursor({
         createdAt: lastItem.createdAt,
         id: lastItem.id,
+        rank_score: lastItem.rank_score,
       });
     }
 

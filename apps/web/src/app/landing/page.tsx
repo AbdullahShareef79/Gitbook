@@ -1,19 +1,56 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Code2, Users, Sparkles, Zap, Github, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import axios from 'axios';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function LandingPage() {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [codeValid, setCodeValid] = useState<boolean | null>(null);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const code = searchParams.get('invite');
+    if (code) {
+      setInviteCode(code);
+      validateCode(code);
+    }
+  }, [searchParams]);
+
+  const validateCode = async (code: string) => {
+    try {
+      const response = await axios.post(`${API_BASE}/auth/invite/claim`, { code });
+      setCodeValid(response.data.success);
+    } catch {
+      setCodeValid(false);
+    }
+  };
 
   const handleWaitlist = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Send to waitlist API
-    console.log('Waitlist signup:', email);
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
+    try {
+      await axios.post(`${API_BASE}/feedback/waitlist`, { text: `Waitlist: ${email}` });
+      setSubmitted(true);
+      setTimeout(() => setSubmitted(false), 3000);
+    } catch (error) {
+      console.error('Waitlist error:', error);
+    }
+  };
+
+  const handleInviteCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const code = e.target.value;
+    setInviteCode(code);
+    if (code.length >= 8) {
+      validateCode(code);
+    } else {
+      setCodeValid(null);
+    }
   };
 
   return (
@@ -36,13 +73,32 @@ export default function LandingPage() {
             The only platform that combines real-time collaboration, AI pair programming, and smart project matching in one place.
           </p>
 
+          {/* Invite Code Input */}
+          {codeValid !== true && (
+            <div className="max-w-md mx-auto mb-8">
+              <label className="block text-sm text-gray-400 mb-2">Have an invite code?</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={inviteCode}
+                  onChange={handleInviteCodeChange}
+                  placeholder="Enter invite code"
+                  className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 text-white placeholder-gray-400 uppercase"
+                />
+                {codeValid === false && (
+                  <span className="flex items-center text-red-400 text-sm">Invalid code</span>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
             <Link
-              href="/api/auth/signin"
+              href={codeValid ? '/api/auth/signin' : '/api/auth/signin'}
               className="inline-flex items-center gap-2 px-8 py-4 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-lg transition"
             >
               <Github size={20} />
-              Sign in with GitHub
+              {codeValid ? 'Sign in with Invite' : 'Sign in with GitHub'}
               <ArrowRight size={20} />
             </Link>
 
@@ -55,25 +111,27 @@ export default function LandingPage() {
           </div>
 
           {/* Waitlist Form */}
-          <form onSubmit={handleWaitlist} className="max-w-md mx-auto">
-            <div className="flex gap-2">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email for early access"
-                required
-                className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 text-white placeholder-gray-400"
-              />
-              <button
-                type="submit"
-                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition"
-              >
-                {submitted ? '✓ Joined!' : 'Join Waitlist'}
-              </button>
-            </div>
-            <p className="text-sm text-gray-400 mt-2">Join 2,000+ developers already on the waitlist</p>
-          </form>
+          {codeValid !== true && (
+            <form onSubmit={handleWaitlist} className="max-w-md mx-auto">
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email for early access"
+                  required
+                  className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 text-white placeholder-gray-400"
+                />
+                <button
+                  type="submit"
+                  className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition"
+                >
+                  {submitted ? '✓ Joined!' : 'Join Waitlist'}
+                </button>
+              </div>
+              <p className="text-sm text-gray-400 mt-2">Join 2,000+ developers already on the waitlist</p>
+            </form>
+          )}
         </div>
       </section>
 

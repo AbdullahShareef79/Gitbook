@@ -151,6 +151,102 @@ All **9 requested features** have been successfully implemented and are producti
 
 ---
 
+## 🚀 Phase 2: Advanced Features (NEW)
+
+### 10. Invite Codes + Waitlist ✅
+- [x] InviteCode table with expiration
+- [x] POST /auth/invite/create (admin)
+- [x] POST /auth/invite/claim
+- [x] Waitlist form (no auth)
+- [x] Landing page integration
+- [x] Invite code validation
+
+**Files:**
+- `apps/api/src/invite/*`
+- `apps/web/src/app/landing/page.tsx`
+- `apps/api/src/db/migrations/20251119_advanced_features.sql`
+
+---
+
+### 11. Feedback Route ✅
+- [x] Feedback table
+- [x] POST /feedback (auth required)
+- [x] GET /feedback (admin)
+- [x] POST /feedback/waitlist (public)
+- [x] Frontend feedback page
+- [x] Toast notifications
+- [x] Event logging
+
+**Files:**
+- `apps/api/src/feedback/*`
+- `apps/web/src/app/feedback/page.tsx`
+
+---
+
+### 12. Profile Follow Tabs ✅
+- [x] GET /users/profile/:handle/followers
+- [x] GET /users/profile/:handle/following
+- [x] Cursor-based pagination
+- [x] Ready for frontend tabs implementation
+
+**Files:**
+- `apps/api/src/users/users.controller.ts`
+
+---
+
+### 13. Notifications SSE ✅
+- [x] GET /notifications/stream (SSE)
+- [x] Real-time notification delivery
+- [x] Heartbeat every 15 seconds
+- [x] Observable pattern with RxJS
+- [x] In-memory connection management
+
+**Files:**
+- `apps/api/src/notifications/notifications.controller.ts`
+
+---
+
+### 14. Jam Templates ✅
+- [x] JamTemplate table
+- [x] GET /jam-templates
+- [x] POST /jams with templateId
+- [x] Starter code prefill
+- [x] Language-based templates
+
+**Files:**
+- `apps/api/src/jam-templates/*`
+- `apps/api/src/jams/jams.service.ts`
+
+---
+
+### 15. Feed Ranking v1 (Materialized) ✅
+- [x] Post.rank_score column
+- [x] Ranking formula: 0.6 * recency + 0.4 * engagement
+- [x] Database index on rank_score
+- [x] SQL update script for cron
+- [x] Hourly update pattern documented
+
+**Files:**
+- `apps/api/src/db/update_rank_scores.sql`
+- `apps/api/src/db/migrations/20251119_advanced_features.sql`
+
+---
+
+### 16. Moderation Queue ✅
+- [x] Flag table with status enum
+- [x] POST /posts/:id/flags
+- [x] GET /flags (admin)
+- [x] POST /flags/:id/resolve
+- [x] OPEN/RESOLVED/DISMISSED statuses
+- [x] Cursor pagination support
+
+**Files:**
+- `apps/api/src/moderation/*`
+
+---
+
+---
+
 ## 📊 Statistics
 
 - **Total Features:** 9/9 (100%)

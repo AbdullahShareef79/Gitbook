@@ -6,15 +6,33 @@ import { randomBytes } from 'crypto';
 export class JamsService {
   constructor(private prisma: PrismaService) {}
 
-  async createJam(hostId: string) {
+  async createJam(hostId: string, templateId?: string) {
     const roomId = randomBytes(16).toString('hex');
     
-    return this.prisma.jam.create({
+    const jam = await this.prisma.jam.create({
       data: {
         hostId,
         roomId,
       },
     });
+
+    // If template provided, prefill snapshot with starter code
+    if (templateId) {
+      const result = await this.prisma.pool.query(
+        `SELECT starter_code FROM "JamTemplate" WHERE id = $1`,
+        [templateId]
+      );
+
+      if (result.rows.length > 0 && result.rows[0].starter_code) {
+        // Convert starter code to Yjs update format (simplified)
+        // In real implementation, you'd use Yjs to create proper update
+        const starterCode = result.rows[0].starter_code;
+        const base64Update = Buffer.from(starterCode).toString('base64');
+        await this.saveSnapshot(jam.id, base64Update);
+      }
+    }
+
+    return jam;
   }
 
   async getJam(id: string) {

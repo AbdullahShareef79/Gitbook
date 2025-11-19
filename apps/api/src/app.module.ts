@@ -12,6 +12,10 @@ import { MarketplaceModule } from './marketplace/marketplace.module';
 import { GdprModule } from './gdpr/gdpr.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { InviteModule } from './invite/invite.module';
+import { FeedbackModule } from './feedback/feedback.module';
+import { JamTemplatesModule } from './jam-templates/jam-templates.module';
+import { ModerationModule } from './moderation/moderation.module';
 
 @Module({
   imports: [
@@ -28,6 +32,10 @@ import { NotificationsModule } from './notifications/notifications.module';
     GdprModule,
     HealthModule,
     NotificationsModule,
+    InviteModule,
+    FeedbackModule,
+    JamTemplatesModule,
+    ModerationModule,
   ],
 })
 export class AppModule {}

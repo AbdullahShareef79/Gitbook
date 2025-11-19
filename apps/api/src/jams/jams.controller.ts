@@ -1,6 +1,13 @@
 import { Controller, Post, Get, Param, UseGuards, Request, Body } from '@nestjs/common';
 import { JamsService } from './jams.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
+import { IsString, IsOptional } from 'class-validator';
+
+class CreateJamDto {
+  @IsString()
+  @IsOptional()
+  templateId?: string;
+}
 
 @Controller('jams')
 export class JamsController {
@@ -8,8 +15,8 @@ export class JamsController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  async createJam(@Request() req) {
-    return this.jams.createJam(req.user.userId);
+  async createJam(@Body() dto: CreateJamDto, @Request() req) {
+    return this.jams.createJam(req.user.userId, dto.templateId);
   }
 
   @Get(':id')

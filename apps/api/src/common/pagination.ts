@@ -1,4 +1,4 @@
-export type Cursor = { createdAt: string; id: string };
+export type Cursor = { createdAt: string; id: string; rank_score?: number };
 
 export const encodeCursor = (c: Cursor): string => {
   return Buffer.from(JSON.stringify(c)).toString('base64url');

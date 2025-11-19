@@ -22,7 +22,7 @@ export function useInfiniteFeed<T>(
 
     // First page
     if (pageIndex === 0) {
-      return token ? `${endpoint}?limit=${limit}` : null;
+      return `${endpoint}?limit=${limit}`;
     }
 
     // Subsequent pages with cursor
