@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { PostApi } from '../lib/api';
 
 export type Comment = {
@@ -18,13 +19,17 @@ export type Interactions = {
 };
 
 export function usePostInteractions(postId: string) {
+  const { data: session } = useSession();
   const [data, setData] = useState<Interactions | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Get access token from session
+  const token = session?.user ? (session as any).accessToken : null;
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await PostApi.interactions(postId);
+      const res = await PostApi.interactions(postId, token);
       // Transform API response to expected format
       setData({
         liked: res.userInteracted?.liked || false,
@@ -47,7 +52,7 @@ export function usePostInteractions(postId: string) {
       });
     }
     setLoading(false);
-  }, [postId]);
+  }, [postId, token]);
 
   useEffect(() => {
     refresh();
@@ -63,7 +68,7 @@ export function usePostInteractions(postId: string) {
     };
     setData(optimistic);
     try {
-      await PostApi.like(postId);
+      await PostApi.like(postId, token);
     } catch (error) {
       // Rollback on error
       setData(data);
@@ -81,7 +86,7 @@ export function usePostInteractions(postId: string) {
     };
     setData(optimistic);
     try {
-      await PostApi.bookmark(postId);
+      await PostApi.bookmark(postId, token);
     } catch (error) {
       // Rollback on error
       setData(data);
@@ -108,7 +113,7 @@ export function usePostInteractions(postId: string) {
     };
     setData(optimistic);
     try {
-      await PostApi.comment(postId, text);
+      await PostApi.comment(postId, text, token);
       // Refresh to get real comment data
       await refresh();
     } catch (error) {

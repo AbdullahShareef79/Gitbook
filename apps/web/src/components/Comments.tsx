@@ -55,20 +55,26 @@ export default function Comments({ comments, onAdd, showAll = false }: Props) {
           {displayComments.map((comment) => (
             <li key={comment.id} className="text-sm">
               <div className="flex items-start gap-2">
-                {comment.author.image && (
+                {comment.author?.image ? (
                   <img
                     src={comment.author.image}
                     alt={comment.author.handle}
                     className="w-8 h-8 rounded-full"
                   />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                    <span className="text-xs font-semibold">
+                      {comment.author?.name?.[0]?.toUpperCase() || comment.author?.handle?.[0]?.toUpperCase() || '?'}
+                    </span>
+                  </div>
                 )}
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-gray-900 dark:text-gray-100">
-                      {comment.author.name || comment.author.handle}
+                      {comment.author?.name || comment.author?.handle || 'Unknown'}
                     </span>
                     <span className="text-gray-500 dark:text-gray-400">
-                      @{comment.author.handle}
+                      @{comment.author?.handle || 'unknown'}
                     </span>
                     <span className="text-gray-400 text-xs">
                       {new Date(comment.createdAt).toLocaleDateString()}

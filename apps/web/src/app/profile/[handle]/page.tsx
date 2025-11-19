@@ -2,6 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import axios from 'axios';
 import FollowList from '@/components/FollowList';
 
@@ -11,14 +12,16 @@ type TabType = 'projects' | 'followers' | 'following';
 
 export default function ProfilePage() {
   const params = useParams();
+  const { data: session } = useSession();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('projects');
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
+  // Get current user ID from session
+  const currentUserId = session?.user ? (session.user as any).id : null;
 
   useEffect(() => {
     fetchProfile();
-    fetchCurrentUser();
   }, [params.handle]);
 
   const fetchProfile = async () => {
@@ -29,20 +32,6 @@ export default function ProfilePage() {
       console.error('Failed to fetch profile:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchCurrentUser = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const response = await axios.get(`${API_URL}/users/me`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setCurrentUserId(response.data.id);
-      }
-    } catch (error) {
-      console.error('Failed to fetch current user:', error);
     }
   };
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import useSWRInfinite from 'swr/infinite';
 import axios from 'axios';
 
@@ -29,7 +30,11 @@ interface FollowListProps {
 }
 
 export default function FollowList({ handle, type, currentUserId }: FollowListProps) {
+  const { data: session } = useSession();
   const [optimisticFollows, setOptimisticFollows] = useState<Record<string, boolean>>({});
+  
+  // Get access token from session
+  const token = session?.user ? (session as any).accessToken : null;
 
   const getKey = (pageIndex: number, previousPageData: FollowListResponse | null) => {
     if (previousPageData && !previousPageData.nextCursor) return null;
@@ -51,13 +56,12 @@ export default function FollowList({ handle, type, currentUserId }: FollowListPr
   const isReachingEnd = isEmpty || (data && data[data.length - 1]?.nextCursor === null);
 
   const handleFollow = async (userId: string, currentlyFollowing: boolean) => {
-    if (!currentUserId) return;
+    if (!currentUserId || !token) return;
 
     // Optimistic update
     setOptimisticFollows(prev => ({ ...prev, [userId]: !currentlyFollowing }));
 
     try {
-      const token = localStorage.getItem('token');
       if (currentlyFollowing) {
         await axios.delete(`${API_URL}/users/${userId}/follow`, {
           headers: { Authorization: `Bearer ${token}` }
