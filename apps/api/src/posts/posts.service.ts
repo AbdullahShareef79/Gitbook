@@ -74,11 +74,11 @@ export class PostsService {
     const params: any[] = [];
     
     if (decodedCursor) {
-      query += ` WHERE (p.rank_score, p.id) < ($1::float, $2)`;
-      params.push(decodedCursor.rank_score, decodedCursor.id);
+      query += ` WHERE (p."createdAt", p.id) < ($1::timestamp, $2)`;
+      params.push(decodedCursor.createdAt, decodedCursor.id);
     }
 
-    query += ` ORDER BY p.rank_score DESC, p.id DESC LIMIT $${params.length + 1}`;
+    query += ` ORDER BY p."createdAt" DESC, p.id DESC LIMIT $${params.length + 1}`;
     params.push(limit + 1); // Fetch one extra to determine if there's a next page
 
     const result = await this.prisma.pool.query(query, params);
@@ -96,7 +96,6 @@ export class PostsService {
       nextCursor = encodeCursor({
         createdAt: lastItem.createdAt,
         id: lastItem.id,
-        rank_score: lastItem.rank_score,
       });
     }
 
@@ -229,4 +228,70 @@ export class PostsService {
       comments: interactions.filter(i => i.kind === 'COMMENT'),
     };
   }
+
+  async getTrendingPosts(limit = 20, timeframe = '24h') {
+    // Parse timeframe
+    const hours = timeframe.endsWith('h') ? parseInt(timeframe) : 24;
+    const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+    const posts = await this.prisma.post.findMany({
+      where: {
+        createdAt: {
+          gte: cutoffDate,
+        },
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            handle: true,
+            name: true,
+            image: true,
+          },
+        },
+        interactions: {
+          select: {
+            kind: true,
+            createdAt: true,
+          },
+        },
+      },
+      take: limit * 3, // Get more initially for sorting
+    });
+
+    // Calculate trending score
+    const now = Date.now();
+    const postsWithScores = posts.map(post => {
+      const ageHours = (now - post.createdAt.getTime()) / (1000 * 60 * 60);
+      const likes = post.interactions.filter(i => i.kind === 'LIKE').length;
+      const comments = post.interactions.filter(i => i.kind === 'COMMENT').length;
+      const bookmarks = post.interactions.filter(i => i.kind === 'BOOKMARK').length;
+
+      // Trending score: (engagement) / (age + 2)^1.5
+      // Weights: likes=1, comments=3, bookmarks=2
+      const engagement = likes + (comments * 3) + (bookmarks * 2);
+      const trendingScore = engagement / Math.pow(ageHours + 2, 1.5);
+
+      return {
+        ...post,
+        trendingScore,
+        engagement: {
+          likes,
+          comments,
+          bookmarks,
+        },
+      };
+    });
+
+    // Sort by trending score and return top N
+    const trending = postsWithScores
+      .sort((a, b) => b.trendingScore - a.trendingScore)
+      .slice(0, limit);
+
+    return {
+      posts: trending,
+      timeframe,
+    };
+  }
 }
+

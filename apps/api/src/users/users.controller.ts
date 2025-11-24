@@ -90,5 +90,12 @@ export class UsersController {
     const parsedLimit = Math.min(parseInt(limit || '20', 10), 50);
     return this.users.getBookmarks(req.user.userId, cursor, parsedLimit);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('recommendations')
+  async getRecommendations(@Request() req, @Query('limit') limit?: string) {
+    const parsedLimit = Math.min(parseInt(limit || '10', 10), 20);
+    return this.users.getRecommendations(req.user.userId, parsedLimit);
+  }
 }
 

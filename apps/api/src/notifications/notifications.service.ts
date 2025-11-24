@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { encodeCursor, decodeCursor } from '../common/pagination';
 
-export type NotificationType = 'LIKE' | 'BOOKMARK' | 'COMMENT' | 'FOLLOW' | 'JAM_INVITE';
+export type NotificationType = 'LIKE' | 'BOOKMARK' | 'COMMENT' | 'FOLLOW' | 'JAM_INVITE' | 'mention' | 'message';
 
 @Injectable()
 export class NotificationsService {

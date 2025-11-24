@@ -223,6 +223,34 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       return result.rows[0] || null;
     },
 
+    findMany: async (params: any = {}) => {
+      let query = `SELECT * FROM "User" WHERE TRUE`;
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      if (params.where) {
+        if (params.where.handle?.contains) {
+          query += ` AND handle ILIKE $${paramIndex++}`;
+          values.push(`%${params.where.handle.contains}%`);
+        }
+        if (params.where.id?.in) {
+          query += ` AND id = ANY($${paramIndex++})`;
+          values.push(params.where.id.in);
+        }
+        if (params.where.id?.notIn) {
+          query += ` AND id != ALL($${paramIndex++})`;
+          values.push(params.where.id.notIn);
+        }
+      }
+
+      if (params.take) {
+        query += ` LIMIT ${params.take}`;
+      }
+
+      const result = await this.pool.query(query, values);
+      return result.rows;
+    },
+
     create: async (params: any) => {
       const { data } = params;
       const result = await this.pool.query(
@@ -465,6 +493,200 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
       const result = await this.pool.query(query, values);
       return parseInt(result.rows[0].count, 10);
+    },
+  };
+
+  // Conversation methods
+  conversation = {
+    findMany: async (params: any = {}) => {
+      const result = await this.pool.query(
+        `SELECT c.*, 
+          json_agg(DISTINCT jsonb_build_object('id', cp.id, 'userId', cp."userId", 'lastReadAt', cp."lastReadAt")) as participants,
+          (SELECT json_build_object('id', m.id, 'content', m.content, 'senderId', m."senderId", 'createdAt', m."createdAt")
+           FROM "Message" m WHERE m."conversationId" = c.id ORDER BY m."createdAt" DESC LIMIT 1) as "lastMessage"
+         FROM "Conversation" c
+         LEFT JOIN "ConversationParticipant" cp ON c.id = cp."conversationId"
+         WHERE cp."userId" = $1
+         GROUP BY c.id
+         ORDER BY c."updatedAt" DESC`,
+        [params.where?.participants?.some?.userId || '']
+      );
+      return result.rows;
+    },
+    findFirst: async (params: any) => {
+      const result = await this.pool.query(
+        `SELECT c.* FROM "Conversation" c
+         INNER JOIN "ConversationParticipant" cp1 ON c.id = cp1."conversationId"
+         INNER JOIN "ConversationParticipant" cp2 ON c.id = cp2."conversationId"
+         WHERE cp1."userId" = $1 AND cp2."userId" = $2 AND c."isGroup" = false
+         LIMIT 1`,
+        [params.where?.participants?.every?.[0]?.userId, params.where?.participants?.every?.[1]?.userId]
+      );
+      return result.rows[0] || null;
+    },
+    create: async (params: any) => {
+      const { data } = params;
+      const result = await this.pool.query(
+        `INSERT INTO "Conversation" (id, "isGroup", name, "createdAt", "updatedAt")
+         VALUES (gen_random_uuid()::text, $1, $2, NOW(), NOW())
+         RETURNING *`,
+        [data.isGroup || false, data.name || null]
+      );
+      return result.rows[0];
+    },
+    update: async (params: any) => {
+      await this.pool.query(
+        `UPDATE "Conversation" SET "updatedAt" = NOW() WHERE id = $1`,
+        [params.where.id]
+      );
+    },
+  };
+
+  // ConversationParticipant methods
+  conversationParticipant = {
+    findFirst: async (params: any) => {
+      const result = await this.pool.query(
+        `SELECT * FROM "ConversationParticipant"
+         WHERE "conversationId" = $1 AND "userId" = $2 LIMIT 1`,
+        [params.where.conversationId, params.where.userId]
+      );
+      return result.rows[0] || null;
+    },
+    findMany: async (params: any) => {
+      const result = await this.pool.query(
+        `SELECT cp.*, json_build_object('id', u.id, 'handle', u.handle, 'name', u.name, 'image', u.image) as user
+         FROM "ConversationParticipant" cp
+         INNER JOIN "User" u ON cp."userId" = u.id
+         WHERE cp."conversationId" = $1 AND cp."userId" != $2`,
+        [params.where.conversationId, params.where.userId?.not || '']
+      );
+      return result.rows;
+    },
+    create: async (params: any) => {
+      const { data } = params;
+      const result = await this.pool.query(
+        `INSERT INTO "ConversationParticipant" (id, "conversationId", "userId", "joinedAt")
+         VALUES (gen_random_uuid()::text, $1, $2, NOW())
+         RETURNING *`,
+        [data.conversationId, data.userId]
+      );
+      return result.rows[0];
+    },
+  };
+
+  // Message methods
+  message = {
+    findMany: async (params: any = {}) => {
+      let query = `SELECT m.*, json_build_object('id', u.id, 'handle', u.handle, 'name', u.name, 'image', u.image) as sender
+                   FROM "Message" m
+                   INNER JOIN "User" u ON m."senderId" = u.id
+                   WHERE m."conversationId" = $1 AND m."isDeleted" = false`;
+      const values = [params.where?.conversationId];
+      
+      if (params.cursor) {
+        query += ` AND m."createdAt" < (SELECT "createdAt" FROM "Message" WHERE id = $2)`;
+        values.push(params.cursor);
+      }
+      
+      query += ` ORDER BY m."createdAt" DESC LIMIT ${params.take || 50}`;
+      
+      const result = await this.pool.query(query, values);
+      return result.rows.reverse();
+    },
+    create: async (params: any) => {
+      const { data } = params;
+      const result = await this.pool.query(
+        `INSERT INTO "Message" (id, "conversationId", "senderId", content, type, metadata, "createdAt", "updatedAt")
+         VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, NOW(), NOW())
+         RETURNING *`,
+        [data.conversationId, data.senderId, data.content, data.type || 'TEXT', data.metadata ? JSON.stringify(data.metadata) : null]
+      );
+      return result.rows[0];
+    },
+    findUnique: async (params: any) => {
+      const result = await this.pool.query(
+        `SELECT m.*, json_build_object('id', u.id, 'handle', u.handle, 'name', u.name, 'image', u.image) as sender
+         FROM "Message" m
+         INNER JOIN "User" u ON m."senderId" = u.id
+         WHERE m.id = $1`,
+        [params.where.id]
+      );
+      return result.rows[0] || null;
+    },
+    delete: async (params: any) => {
+      await this.pool.query(
+        `UPDATE "Message" SET "isDeleted" = true WHERE id = $1`,
+        [params.where.id]
+      );
+    },
+    updateMany: async (params: any) => {
+      if (params.where?.conversationId && params.data?.isRead !== undefined) {
+        // Mark messages as read - this is a placeholder, adjust based on your schema
+        await this.pool.query(
+          `UPDATE "ConversationParticipant" SET "lastReadAt" = NOW()
+           WHERE "conversationId" = $1 AND "userId" = $2`,
+          [params.where.conversationId, params.where.senderId?.not]
+        );
+      }
+    },
+    count: async (params: any) => {
+      const result = await this.pool.query(
+        `SELECT COUNT(*) FROM "Message"
+         WHERE "conversationId" = $1 AND "senderId" = $2 AND "isDeleted" = false
+         AND "createdAt" > COALESCE(
+           (SELECT "lastReadAt" FROM "ConversationParticipant" 
+            WHERE "conversationId" = $1 AND "userId" != $2 LIMIT 1),
+           '1970-01-01'
+         )`,
+        [params.where.conversationId, params.where.senderId]
+      );
+      return parseInt(result.rows[0].count, 10);
+    },
+  };
+
+  // Mention methods
+  mention = {
+    create: async (params: any) => {
+      const { data } = params;
+      const result = await this.pool.query(
+        `INSERT INTO "Mention" (id, "postId", "commentId", "mentionedUserId", "createdById", "createdAt")
+         VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NOW())
+         RETURNING *`,
+        [data.postId || null, data.commentId || null, data.mentionedUserId, data.createdById]
+      );
+      return result.rows[0];
+    },
+    findMany: async (params: any = {}) => {
+      let query = `SELECT m.*, 
+                    json_build_object('id', u.id, 'handle', u.handle, 'name', u.name, 'image', u.image) as "mentionedUser",
+                    json_build_object('id', cu.id, 'handle', cu.handle, 'name', cu.name, 'image', cu.image) as "createdBy"`;
+      
+      if (params.include?.post) {
+        query += `, json_build_object('id', p.id, 'content', p.content) as post`;
+      }
+      
+      query += ` FROM "Mention" m
+                 INNER JOIN "User" u ON m."mentionedUserId" = u.id
+                 INNER JOIN "User" cu ON m."createdById" = cu.id`;
+      
+      if (params.include?.post) {
+        query += ` LEFT JOIN "Post" p ON m."postId" = p.id`;
+      }
+      
+      const values = [];
+      if (params.where?.mentionedUserId) {
+        query += ` WHERE m."mentionedUserId" = $1`;
+        values.push(params.where.mentionedUserId);
+      }
+      
+      query += ` ORDER BY m."createdAt" DESC`;
+      
+      if (params.take) {
+        query += ` LIMIT ${params.take}`;
+      }
+      
+      const result = await this.pool.query(query, values);
+      return result.rows;
     },
   };
 

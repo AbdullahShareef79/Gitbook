@@ -30,6 +30,14 @@ model User {
   sales         Transaction[] @relation("Seller")
   interactions  PostInteraction[]
   marketplaceItems MarketplaceItem[] @relation("MarketplaceSeller")
+  
+  // Direct Messaging
+  sentMessages      Message[] @relation("MessageSender")
+  conversationParticipants ConversationParticipant[]
+  
+  // Mentions
+  mentions          Mention[] @relation("MentionedUser")
+  createdMentions   Mention[] @relation("MentionCreator")
 }
 
 enum UserRole {
@@ -56,9 +64,12 @@ model Post {
   author      User     @relation(fields: [authorId], references: [id])
   type        PostType
   content     Json
+  viewCount   Int      @default(0)
+  trendingScore Float  @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   interactions PostInteraction[]
+  mentions    Mention[]
 }
 
 enum PostType {
@@ -155,3 +166,71 @@ enum InteractionKind {
   BOOKMARK
   COMMENT
 }
+
+// Direct Messaging
+model Conversation {
+  id          String   @id @default(cuid())
+  isGroup     Boolean  @default(false)
+  name        String?  // For group chats
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime?
+  joinedAt       DateTime @default(now())
+  
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  content        String
+  type           MessageType @default(TEXT)
+  metadata       Json?    // For code snippets, links, etc.
+  isEdited       Boolean  @default(false)
+  isDeleted      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([conversationId])
+  @@index([senderId])
+}
+
+enum MessageType {
+  TEXT
+  CODE
+  IMAGE
+  LINK
+}
+
+// Mentions System
+model Mention {
+  id         String   @id @default(cuid())
+  postId     String?
+  post       Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  commentId  String?  // Reference to PostInteraction with kind=COMMENT
+  mentionedUserId String
+  mentionedUser   User @relation("MentionedUser", fields: [mentionedUserId], references: [id], onDelete: Cascade)
+  createdById     String
+  createdBy       User @relation("MentionCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  notified        Boolean @default(false)
+  createdAt       DateTime @default(now())
+  
+  @@index([mentionedUserId])
+  @@index([postId])
+}
+

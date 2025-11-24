@@ -32,6 +32,15 @@ export class PostsController {
     return this.posts.getFeed(cursor, limitNum);
   }
 
+  @Get('trending')
+  async getTrending(
+    @Query('limit') limit?: string,
+    @Query('timeframe') timeframe?: string,
+  ) {
+    const limitNum = limit ? Math.min(parseInt(limit), 50) : 20;
+    return this.posts.getTrendingPosts(limitNum, timeframe || '24h');
+  }
+
   @Get(':id')
   async getPost(@Param('id') id: string) {
     return this.posts.getPostById(id);

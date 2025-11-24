@@ -207,4 +207,99 @@ export class UsersService {
         : null,
     };
   }
+
+  async getRecommendations(userId: string, limit = 10) {
+    // Get user's current follows and skills
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        follows: {
+          select: { followeeId: true },
+        },
+      },
+    });
+
+    if (!currentUser) {
+      return { users: [] };
+    }
+
+    const followingIds = currentUser.follows.map(f => f.followeeId);
+    const userSkills = currentUser.skills || [];
+
+    // Find users with similar skills who are followed by people you follow
+    const recommendations = await this.prisma.user.findMany({
+      where: {
+        AND: [
+          { id: { not: userId } }, // Not self
+          { id: { notIn: followingIds } }, // Not already following
+          {
+            OR: [
+              // Users followed by your follows (friend-of-friend)
+              {
+                followers: {
+                  some: {
+                    followerId: { in: followingIds },
+                  },
+                },
+              },
+              // Users with similar skills
+              userSkills.length > 0
+                ? {
+                    skills: {
+                      hasSome: userSkills,
+                    },
+                  }
+                : {},
+            ],
+          },
+        ],
+      },
+      select: {
+        id: true,
+        handle: true,
+        name: true,
+        image: true,
+        headline: true,
+        skills: true,
+        _count: {
+          select: {
+            followers: true,
+            posts: true,
+          },
+        },
+      },
+      take: limit * 2, // Get more for scoring
+    });
+
+    // Score and sort recommendations
+    const scored = recommendations.map(user => {
+      let score = 0;
+
+      // Points for mutual skills
+      const mutualSkills = user.skills.filter(s => userSkills.includes(s));
+      score += mutualSkills.length * 3;
+
+      // Points for followers (popularity)
+      score += Math.log(user._count.followers + 1);
+
+      // Points for activity
+      score += Math.log(user._count.posts + 1) * 0.5;
+
+      return {
+        ...user,
+        mutualSkills,
+        score,
+      };
+    });
+
+    // Sort by score and return top N
+    const topRecommendations = scored
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+
+    return {
+      users: topRecommendations,
+    };
+  }
 }
+

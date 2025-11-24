@@ -16,6 +16,8 @@ import { InviteModule } from './invite/invite.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { JamTemplatesModule } from './jam-templates/jam-templates.module';
 import { ModerationModule } from './moderation/moderation.module';
+import { MessagesModule } from './messages/messages.module';
+import { MentionsModule } from './mentions/mentions.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { ModerationModule } from './moderation/moderation.module';
     FeedbackModule,
     JamTemplatesModule,
     ModerationModule,
+    MessagesModule,
+    MentionsModule,
   ],
 })
 export class AppModule {}
